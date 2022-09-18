@@ -1,0 +1,42 @@
+name: Helm
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  publish:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Chart Checkout
+        uses: actions/checkout@v2
+      - name: Helm Installation
+        uses: azure/setup-helm@v1.1
+        with:
+          version: v3.7.0
+      - name: Helm Repository Checkout
+        uses: actions/checkout@v2
+        with:
+          repository: arola1982/helmcharts
+          token: ${{ secrets.HELMCHART_API_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: true
+          ref: master
+          path: helmcharts
+      - name: Helm Lint
+        run: |
+          helm lint .
+      - name: Helm Package
+        run: |
+          helm package . -d helmcharts
+      - name: Helm Push
+        env:
+          GITHUB_TOKEN: ${{ secrets.HELMCHART_API_TOKEN }}
+        run: |
+          git config --global user.email "githubbot@arola.co.uk"
+          git config --global user.name "Arola Bot"
+          cd helmcharts
+          git add *.tgz
+          REPO_NAME=${{ github.event.repository.name }}
+          git commit -m "Push update for $REPO_NAME"
+          git push origin master

@@ -1,0 +1,11 @@
+---
+
+apiVersion: arola.local/v1
+kind: TraefikCertWatcher
+metadata:
+  name: xxx
+spec:
+  domain: xxx
+  secretName: xxx
+  release: xxx
+  managed_items: []
