@@ -25,7 +25,7 @@ def delete_fn(logger, spec, namespace, **kwargs):
 def timer_fn(logger, spec, namespace,  **kwargs):
     domain = spec.get('domain')
 
-    if compare_hashes(logger, domain, spec, namespace):
+    if compare_hashes(logger, domain):
         update_secret(logger, spec, namespace)
         rolling_update(logger, spec, namespace)
         
