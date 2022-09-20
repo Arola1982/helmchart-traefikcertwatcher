@@ -14,13 +14,17 @@ recorded_hash = ""
 config.load_incluster_config()
 
 def get_traefik_pod_info(namespace=traefik_namespace, label_selector=label_selector):
-    v1 = client.CoreV1Api()
-    pod_data = v1.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
+    try:
+        v1 = client.CoreV1Api()
+        pod_data = v1.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
 
-    for item in pod_data:
-        pod_name = item.metadata.name
+        for item in pod_data:
+            pod_name = item.metadata.name
 
-    return pod_name
+        return pod_name
+
+    except ApiException as e:
+        print(f'{e.reason} whilst trying to interact with the kubernetes API')
 
 def compare_hashes(logger, domain, spec, namespace):
     actual_hash = hashlib.sha256(get_cert_info(logger, le_domain=domain)['tls.crt'].encode()).hexdigest()
