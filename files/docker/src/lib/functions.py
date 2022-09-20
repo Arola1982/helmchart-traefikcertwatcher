@@ -26,7 +26,7 @@ def get_traefik_pod_info(namespace=traefik_namespace, label_selector=label_selec
     except ApiException as e:
         print(f'{e.reason} whilst trying to interact with the kubernetes API')
 
-def compare_hashes(logger, domain, spec, namespace):
+def compare_hashes(logger, domain):
     actual_hash = hashlib.sha256(get_cert_info(logger, le_domain=domain)['tls.crt'].encode()).hexdigest()
 
     global recorded_hash
@@ -34,7 +34,6 @@ def compare_hashes(logger, domain, spec, namespace):
         logger.warn(f'Certificate has changed')
         
         recorded_hash = actual_hash
-        update_secret(logger, spec, namespace)
         return True
 
 def get_acme_json(namespace=traefik_namespace):
