@@ -39,3 +39,11 @@ spec.release - The release name of the managed items.
 In the example above if postfix was part of a parent chart called test then the postfix deployment name would be test-postfix to internally the release and managed_item.name are merged together
 
 managed_items - These are deployments or statefulsets that would be redeployed based on when the monitored certificate changes (With a 2 minute wait between items)
+
+Usage:
+
+1. Install the crd `kubectl apply -f files/crd.yaml`
+2. Install the chart `helm install traefikcertwatcher .`
+3. Create an object
+
+The polling defaults to 15 minutes
