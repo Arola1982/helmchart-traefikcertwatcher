@@ -6,7 +6,7 @@ doesnt create a secret that can be mounted this becomes a problem.
 
 The solution here is to:
 
-1. Periodically poll and parses the data/acme.json
+1. Periodically poll and parse the data/acme.json
 2. Based on the crd object will extract certificate information for a given domain
 3. Records initial hash of the certificate and if it changes it will trigger a rolling update of specific deployments / statefulsets after writing
    a secret to kubernetes so that pods can use it
