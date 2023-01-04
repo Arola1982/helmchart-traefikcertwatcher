@@ -57,8 +57,9 @@ def get_acme_json(namespace=traefik_namespace):
 
     return api_response.replace('\'', '"')
 
-def get_cert_info(logger, le_domain, pod_name=get_traefik_pod_info()):
+def get_cert_info(logger, le_domain):
     acme_json = json.loads(get_acme_json())
+    pod_name = get_traefik_pod_info()
 
     certificates = acme_json['letsencrypt']['Certificates']
 
@@ -161,7 +162,6 @@ def rolling_update(logger, spec, namespace):
         
         logger.warn(f'Rolling update of {itemType} | {itemName}')
         if itemType == 'deployment':
-
             api_response = api_version.patch_namespaced_deployment(
                 name = itemName,
                 namespace = namespace,
