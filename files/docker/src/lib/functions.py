@@ -4,7 +4,6 @@ import datetime
 import time
 from kubernetes import client, config
 from kubernetes.stream import stream
-from kubernetes.client.exceptions import ApiException
 
 traefik_namespace='kube-system'
 label_selector='app.kubernetes.io/instance=traefik'
@@ -23,7 +22,7 @@ def get_traefik_pod_info(namespace=traefik_namespace, label_selector=label_selec
 
         return pod_name
 
-    except ApiException as e:
+    except client.exceptions.ApiException as e:
         print(f'get_traefik_pod_info : {e.reason} whilst trying to interact with the kubernetes API')
 
 def compare_hashes(logger, domain):
@@ -59,7 +58,7 @@ def get_acme_json(logger, namespace=traefik_namespace):
 
         return api_response.replace('\'', '"')
 
-    except ApiException as e:
+    except client.exceptions.ApiException as e:
         logger.error(f'get_acme_json : {e.reason}')
 
 def get_cert_info(logger, le_domain):
@@ -109,7 +108,7 @@ def create_secret(logger, spec, namespace):
         recorded_hash = hashlib.sha256(get_cert_info(logger, le_domain=domain)['tls.crt'].encode()).hexdigest()
         logger.info(f'First time recording hash {recorded_hash}')
 
-    except ApiException as e:
+    except client.exceptions.ApiException as e:
         if e.reason == 'Conflict':
             logger.warn(f'create_secret : Secret {secret_name} already exists, attempting an update instead')
             update_secret(logger, spec, namespace)
