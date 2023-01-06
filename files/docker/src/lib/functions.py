@@ -24,7 +24,7 @@ def get_traefik_pod_info(namespace=traefik_namespace, label_selector=label_selec
         return pod_name
 
     except ApiException as e:
-        print(f'{e.reason} whilst trying to interact with the kubernetes API')
+        print(f'get_traefik_pod_info : {e.reason} whilst trying to interact with the kubernetes API')
 
 def compare_hashes(logger, domain):
     actual_hash = hashlib.sha256(get_cert_info(logger, le_domain=domain)['tls.crt'].encode()).hexdigest()
@@ -36,44 +36,55 @@ def compare_hashes(logger, domain):
         recorded_hash = actual_hash
         return True
 
-def get_acme_json(namespace=traefik_namespace):
-    core_v1_api = client.CoreV1Api()
-    exec_command = [
-        '/bin/sh',
-        '-c',
-        'cat /data/acme.json'
-    ]
+def get_acme_json(logger, namespace=traefik_namespace):
 
-    api_response = stream(
-        core_v1_api.connect_get_namespaced_pod_exec,
-        get_traefik_pod_info(),
-        namespace,
-        command=exec_command,
-        stderr=True,
-        stdin=False,
-        stdout=True,
-        tty=False
-    )
+    try:
+        core_v1_api = client.CoreV1Api()
+        exec_command = [
+            '/bin/sh',
+            '-c',
+            'cat /data/acme.json'
+        ]
 
-    return api_response.replace('\'', '"')
+        api_response = stream(
+            core_v1_api.connect_get_namespaced_pod_exec,
+            get_traefik_pod_info(),
+            namespace,
+            command=exec_command,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False
+        )
+
+        return api_response.replace('\'', '"')
+
+    except ApiException as e:
+        logger.error(f'get_acme_json : {e.reason}')
 
 def get_cert_info(logger, le_domain):
-    acme_json = json.loads(get_acme_json())
     pod_name = get_traefik_pod_info()
 
-    certificates = acme_json['letsencrypt']['Certificates']
+    try:
+        acme_json = json.loads(get_acme_json(logger))
+        pod_name = get_traefik_pod_info()
 
-    for certificate in certificates:
-        domain = certificate['domain']['main']
+        certificates = acme_json['letsencrypt']['Certificates']
 
-        if domain == le_domain:
-            domain_info = {}
-            domain_info['tls.crt'] = certificate['certificate']
-            domain_info['tls.key'] = certificate['key']
+        for certificate in certificates:
+            domain = certificate['domain']['main']
 
-            logger.info(f"Retrieving SSL information for {le_domain} from {pod_name}")             
+            if domain == le_domain:
+                domain_info = {}
+                domain_info['tls.crt'] = certificate['certificate']
+                domain_info['tls.key'] = certificate['key']
 
-            return domain_info
+                logger.info(f"Retrieving SSL information for {le_domain} from {pod_name}")             
+
+                return domain_info
+
+    except json.decoder.JSONDecodeError:
+        logger.error(f'get_cert_info : Unable to decode json received from {pod_name}')
 
 def create_secret(logger, spec, namespace):
     api_version = client.CoreV1Api()
@@ -100,6 +111,7 @@ def create_secret(logger, spec, namespace):
 
     except ApiException as e:
         if e.reason == 'Conflict':
+            logger.warn(f'create_secret : Secret {secret_name} already exists, attempting an update instead')
             update_secret(logger, spec, namespace)
 
 def update_secret(logger, spec, namespace):
@@ -107,24 +119,19 @@ def update_secret(logger, spec, namespace):
     secret_name = spec.get('secretName')
     domain = spec.get('domain')
 
-    try:
-        api_response = api_version.replace_namespaced_secret(
-            namespace=namespace,
-            name=secret_name,
-            body=client.V1Secret(
-                metadata=client.V1ObjectMeta(
-                    name=secret_name
-                ),
-                type="kubernetes.io/tls",
-                data=get_cert_info(logger, le_domain=domain)
+    api_response = api_version.replace_namespaced_secret(
+        namespace=namespace,
+        name=secret_name,
+        body=client.V1Secret(
+            metadata=client.V1ObjectMeta(
+                name=secret_name
             ),
-        )
+            type="kubernetes.io/tls",
+            data=get_cert_info(logger, le_domain=domain)
+        ),
+    )
 
-        logger.warn(f"Updating Secret {secret_name}")
-
-    except ApiException as e:
-        if e.reason == 'Not Found':
-            pass
+    logger.warn(f"Updating Secret {secret_name}")
 
 def delete_secret(logger, spec, namespace):
     api_version = client.CoreV1Api()
